@@ -1,0 +1,5 @@
+{
+  "find": ["health", "playertag"],
+  "match": "exact",
+  "where": "playertag.Nickname matches \".*[7-9]$\""
+}
