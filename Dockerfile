@@ -4,6 +4,7 @@
 FROM golang:1.24 AS build
 
 ARG SOURCE_PATH
+ARG GITHUB_TOKEN
 
 WORKDIR /go/src/app
 
@@ -12,11 +13,20 @@ ENV GOPRIVATE=github.com/argus-labs/*,pkg.world.dev/*
 ENV GOSUMDB=off
 ENV GOPROXY=direct
 
+# Configure git to use HTTPS with GitHub token if provided, otherwise use SSH
+RUN if [ -n "$GITHUB_TOKEN" ]; then \
+        git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"; \
+    else \
+        apt-get update && apt-get install -y openssh-client && rm -rf /var/lib/apt/lists/*; \
+        git config --global url."git@github.com:".insteadOf "https://github.com/"; \
+        mkdir -p /root/.ssh && ssh-keyscan github.com >> /root/.ssh/known_hosts; \
+    fi
+
 # Copy go.mod and go.sum files first to leverage Docker layer caching
 COPY /${SOURCE_PATH}/go.mod /${SOURCE_PATH}/go.sum ./
 
-# Download dependencies
-RUN go mod download
+# Download dependencies with SSH agent forwarding
+RUN --mount=type=ssh go mod download
 
 # Set the GOCACHE environment variable to /root/.cache/go-build to speed up build
 ENV GOCACHE=/root/.cache/go-build
