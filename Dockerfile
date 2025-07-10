@@ -22,17 +22,14 @@ RUN if [ -n "$GITHUB_TOKEN" ]; then \
         mkdir -p /root/.ssh && ssh-keyscan github.com >> /root/.ssh/known_hosts; \
     fi
 
-# Copy go.mod and go.sum files first to leverage Docker layer caching
-COPY /${SOURCE_PATH}/go.mod /${SOURCE_PATH}/go.sum ./
+# Copy the entire source code
+COPY /${SOURCE_PATH} ./
 
 # remove go.sum file
 RUN rm go.sum
 
 # Download dependencies with SSH agent forwarding
 RUN go mod tidy
-
-# Copy the entire source code
-COPY /${SOURCE_PATH} ./
 
 # Build the binary
 RUN go build -v -o /go/bin/app
