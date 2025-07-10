@@ -10,21 +10,32 @@ WORKDIR /go/src/app
 
 # Set Go environment variables for private repositories
 ENV GOPRIVATE=github.com/argus-labs/*,pkg.world.dev/*
+ENV GOSUMDB=off
+ENV GOPROXY=direct
 
-# Configure git to use HTTPS with GitHub token
-RUN git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
+# Configure git to use HTTPS with GitHub token if provided, otherwise use SSH
+RUN if [ -n "$GITHUB_TOKEN" ]; then \
+        git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"; \
+    else \
+        apt-get update && apt-get install -y openssh-client && rm -rf /var/lib/apt/lists/*; \
+        git config --global url."git@github.com:".insteadOf "https://github.com/"; \
+        mkdir -p /root/.ssh && ssh-keyscan github.com >> /root/.ssh/known_hosts; \
+    fi
+
+# Copy go.mod and go.sum files first to leverage Docker layer caching
+COPY /${SOURCE_PATH}/go.mod /${SOURCE_PATH}/go.sum ./
+
+# Download dependencies with SSH agent forwarding
+RUN --mount=type=ssh go mod download
+
+# Set the GOCACHE environment variable to /root/.cache/go-build to speed up build
+ENV GOCACHE=/root/.cache/go-build
 
 # Copy the entire source code
 COPY /${SOURCE_PATH} ./
 
-# Remove go.sum file
-RUN rm go.sum
-
-# Run go mod tidy to remove unused dependencies
-RUN go mod tidy
-
 # Build the binary
-RUN go build -v -o /go/bin/app
+RUN --mount=type=cache,target="/root/.cache/go-build" go build -v -o /go/bin/app
 
 ################################
 # Runtime Image - Normal
