@@ -29,16 +29,13 @@ COPY /${SOURCE_PATH}/go.mod /${SOURCE_PATH}/go.sum ./
 RUN rm go.sum
 
 # Download dependencies with SSH agent forwarding
-RUN --mount=type=ssh go mod tidy
-
-# Set the GOCACHE environment variable to /root/.cache/go-build to speed up build
-ENV GOCACHE=/root/.cache/go-build
+RUN go mod tidy
 
 # Copy the entire source code
 COPY /${SOURCE_PATH} ./
 
 # Build the binary
-RUN --mount=type=cache,target="/root/.cache/go-build" go build -v -o /go/bin/app
+RUN go build -v -o /go/bin/app
 
 ################################
 # Runtime Image - Normal
