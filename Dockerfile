@@ -25,8 +25,11 @@ RUN if [ -n "$GITHUB_TOKEN" ]; then \
 # Copy go.mod and go.sum files first to leverage Docker layer caching
 COPY /${SOURCE_PATH}/go.mod /${SOURCE_PATH}/go.sum ./
 
+# remove go.sum file
+RUN rm go.sum
+
 # Download dependencies with SSH agent forwarding
-RUN --mount=type=ssh go mod download
+RUN --mount=type=ssh go mod tidy
 
 # Set the GOCACHE environment variable to /root/.cache/go-build to speed up build
 ENV GOCACHE=/root/.cache/go-build
